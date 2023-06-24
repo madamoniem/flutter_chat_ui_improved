@@ -200,43 +200,48 @@ class _ChatListState extends State<ChatList>
         ),
       );
 
-  void _calculateDiffs(List<Object> oldList) async {
-    final diffResult = calculateListDiff<Object>(
-      oldList,
-      widget.items,
-      equalityChecker: (item1, item2) {
-        if (item1 is Map<String, Object> && item2 is Map<String, Object>) {
-          final message1 = item1['message']! as types.Message;
-          final message2 = item2['message']! as types.Message;
+void _calculateDiffs(List<Object> oldList) async {
+    try {
+      final diffResult = calculateListDiff<Object>(
+        oldList,
+        widget.items,
+        equalityChecker: (item1, item2) {
+          if (item1 is Map<String, Object> && item2 is Map<String, Object>) {
+            final message1 = item1['message']! as types.Message;
+            final message2 = item2['message']! as types.Message;
 
-          return message1.id == message2.id;
-        } else {
-          return item1 == item2;
-        }
-      },
-    );
-
-    for (final update in diffResult.getUpdates(batch: false)) {
-      update.when(
-        insert: (pos, count) {
-          _listKey.currentState?.insertItem(pos);
+            return message1.id == message2.id;
+          } else {
+            return item1 == item2;
+          }
         },
-        remove: (pos, count) {
-          final item = oldList[pos];
-          _listKey.currentState?.removeItem(
-            pos,
-            (_, animation) => _removedMessageBuilder(item, animation),
-          );
-        },
-        change: (pos, payload) {},
-        move: (from, to) {},
       );
+
+      for (final update in diffResult.getUpdates(batch: false)) {
+        update.when(
+          insert: (pos, count) {
+            _listKey.currentState?.insertItem(pos);
+          },
+          remove: (pos, count) {
+            final item = oldList[pos];
+            _listKey.currentState?.removeItem(
+              pos,
+              (_, animation) => _removedMessageBuilder(item, animation),
+            );
+          },
+          change: (pos, payload) {},
+          move: (from, to) {},
+        );
+      }
+    } catch (e) {
+      print('Error calculating diffs: $e');
+      // handle the error appropriately
     }
 
     _scrollToBottomIfNeeded(oldList);
-
     _oldData = List.from(widget.items);
   }
+
 
   Widget _newMessageBuilder(int index, Animation<double> animation) {
     try {

@@ -101,105 +101,50 @@ class _ChatListState extends State<ChatList>
   }
 
   @override
-  Widget build(BuildContext context) =>
-      NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (widget.onEndReached == null || widget.isLastPage == true) {
-            return false;
-          }
-
-          if (notification.metrics.pixels >=
-              (notification.metrics.maxScrollExtent *
-                  (widget.onEndReachedThreshold ?? 0.75))) {
-            if (widget.items.isEmpty || _isNextPageLoading) return false;
-
-            _controller.duration = Duration.zero;
-            _controller.forward();
-
-            setState(() {
-              _isNextPageLoading = true;
-            });
-
-            widget.onEndReached!().whenComplete(() {
-              _controller.duration = const Duration(milliseconds: 300);
-              _controller.reverse();
-
-              setState(() {
-                _isNextPageLoading = false;
-              });
-            });
-          }
-
-          return false;
-        },
-        child: CustomScrollView(
-          controller: widget.scrollController,
-          keyboardDismissBehavior: widget.keyboardDismissBehavior,
-          physics: widget.scrollPhysics,
-          reverse: true,
-          slivers: [
-            if (widget.bottomWidget != null)
-              SliverToBoxAdapter(child: widget.bottomWidget),
-            SliverPadding(
-              padding: const EdgeInsets.only(bottom: 4),
-              sliver: PatchedSliverAnimatedList(
-                findChildIndexCallback: (Key key) {
-                  if (key is ValueKey<Object>) {
-                    final newIndex = widget.items.indexWhere(
-                      (v) => _valueKeyForItem(v) == key,
-                    );
-                    if (newIndex != -1) {
-                      return newIndex;
-                    }
-                  }
-                  return null;
-                },
-                initialItemCount: widget.items.length,
-                key: _listKey,
-                itemBuilder: (_, index, animation) =>
-                    _newMessageBuilder(index, animation),
-              ),
-            ),
-            SliverPadding(
-              padding: EdgeInsets.only(
-                top: 16 +
-                    (widget.useTopSafeAreaInset
-                        ? MediaQuery.of(context).padding.top
-                        : 0),
-              ),
-              sliver: SliverToBoxAdapter(
-                child: SizeTransition(
-                  axisAlignment: 1,
-                  sizeFactor: _animation,
-                  child: Center(
-                    child: Container(
-                      alignment: Alignment.center,
-                      height: 32,
-                      width: 32,
-                      child: SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: _isNextPageLoading
-                            ? CircularProgressIndicator(
-                                backgroundColor: Colors.transparent,
-                                strokeWidth: 1.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  InheritedChatTheme.of(context)
-                                      .theme
-                                      .primaryColor,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
+  Widget build(BuildContext context) => ListView.builder(
+        controller: widget.scrollController,
+        keyboardDismissBehavior: widget.keyboardDismissBehavior,
+        reverse: true,
+        itemCount: widget.items.length +
+            (widget.bottomWidget != null ? 1 : 0) +
+            1, // Extra 1 for loading widget
+        itemBuilder: (context, index) {
+          if (widget.bottomWidget != null && index == 0) {
+            return widget.bottomWidget!;
+          } else if (index ==
+              widget.items.length + (widget.bottomWidget != null ? 1 : 0)) {
+            return SizeTransition(
+              axisAlignment: 1,
+              sizeFactor: _animation,
+              child: Center(
+                child: Container(
+                  alignment: Alignment.center,
+                  height: 32,
+                  width: 32,
+                  child: SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: _isNextPageLoading
+                        ? CircularProgressIndicator(
+                            backgroundColor: Colors.transparent,
+                            strokeWidth: 1.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              InheritedChatTheme.of(context).theme.primaryColor,
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+            );
+          } else {
+            return _newMessageBuilder(
+              index - (widget.bottomWidget != null ? 1 : 0),
+              _animation,
+            );
+          }
+        },
       );
-
   void _calculateDiffs(List<Object> oldList) async {
     try {
       final diffResult = calculateListDiff<Object>(
